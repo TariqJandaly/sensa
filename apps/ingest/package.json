@@ -1,0 +1,13 @@
+{
+  "name": "@sensa/ingest",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@sensa/contracts": "workspace:*",
+    "mqtt": "^5.13.0"
+  }
+}

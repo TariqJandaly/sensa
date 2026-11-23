@@ -1,0 +1,11 @@
+{
+  "name": "sensa",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "bun run --filter @sensa/web dev",
+    "build": "bun run --filter @sensa/web build",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
+  }
+}

@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: sensa-db
+    environment:
+      POSTGRES_USER: sensa
+      POSTGRES_PASSWORD: sensa_dev_pw
+      POSTGRES_DB: sensa
+    ports:
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sensa']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: sensa-mqtt
+    ports:
+      - '1883:1883'
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqttdata:/mosquitto/data
+
+volumes:
+  pgdata:
+  mqttdata:

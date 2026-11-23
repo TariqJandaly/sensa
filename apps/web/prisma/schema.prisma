@@ -1,0 +1,182 @@
+// SENSA database schema.
+// Better Auth core tables (User/Session/Account/Verification) + the app's
+// domain: devices, members (wearer + caregivers), readings, events (alert/SOS),
+// per-device thresholds and Web Push subscriptions.
+// Status/type/role columns are plain strings; zod unions in @sensa/contracts
+// are the validators.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Better Auth core ----------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean
+  image         String?
+  locale        String    @default("ar")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   DeviceMember[]
+  ownedDevices  Device[]         @relation("DeviceOwner")
+  pushSubs      PushSubscription[]
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password             String?
+  isAnonymous          Boolean?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  type       String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier, type])
+}
+
+// ---------- SENSA domain ----------
+
+model Device {
+  id          String    @id @default(uuid())
+  name        String
+  ownerId     String
+  tokenHash   String    @unique
+  pairingCode String?   @unique
+  status      String    @default("OFFLINE") // OFFLINE | ONLINE
+  batteryPct  Float?
+  isDemo      Boolean   @default(false)
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner     User           @relation("DeviceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   DeviceMember[]
+  readings  Reading[]
+  events    Event[]
+  threshold Threshold?
+
+  @@index([ownerId])
+}
+
+model DeviceMember {
+  id        String   @id @default(uuid())
+  deviceId  String
+  userId    String
+  role      String   @default("CAREGIVER") // WEARER | CAREGIVER
+  notify    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, userId])
+  @@index([userId])
+}
+
+model Reading {
+  id         String   @id @default(uuid())
+  deviceId   String
+  capturedAt DateTime // device clock; may arrive out of order (offline backfill)
+  receivedAt DateTime @default(now())
+  hrBpm      Float?
+  spo2Pct    Float?
+  tempC      Float?
+  gsrOhm     Float?
+  accelX     Float?
+  accelY     Float?
+  accelZ     Float?
+  status     String   @default("SAFE") // SAFE | WATCH | ALERT
+  flags      Json?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, capturedAt(sort: Desc)])
+}
+
+model Event {
+  id             String    @id @default(uuid())
+  deviceId       String
+  type           String // ALERT | SOS | ONLINE | OFFLINE
+  capturedAt     DateTime
+  receivedAt     DateTime  @default(now())
+  lat            Float?
+  lng            Float?
+  payload        Json?
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, capturedAt(sort: Desc)])
+  @@index([type, capturedAt(sort: Desc)])
+}
+
+model Threshold {
+  deviceId             String @id
+  tempHighC            Float  @default(37.8)
+  hrLowBpm             Float  @default(50)
+  hrHighBpm            Float  @default(120)
+  spo2LowPct           Float  @default(92)
+  gsrChangeThreshold   Float  @default(0.15)
+  motionDeltaThreshold Float @default(2.5)
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

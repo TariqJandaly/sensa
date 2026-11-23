@@ -1,0 +1,28 @@
+{
+  "projectName": "web",
+  "mode": "file-router",
+  "bundler": "vite",
+  "typescript": true,
+  "tailwind": true,
+  "packageManager": "bun",
+  "git": false,
+  "install": false,
+  "intent": true,
+  "addOnOptions": {
+    "prisma": {
+      "database": "postgres"
+    }
+  },
+  "projectPreset": "default",
+  "routerOnly": false,
+  "includeExamples": false,
+  "version": 1,
+  "framework": "react",
+  "chosenAddOns": [
+    "better-auth",
+    "prisma",
+    "shadcn",
+    "tanstack-query",
+    "eslint"
+  ]
+}
